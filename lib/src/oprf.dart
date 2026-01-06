@@ -11,13 +11,13 @@ class OprfClient<CS extends CipherSuite<G, GE, S>, G extends Group<GE, S>,
   final CS cipherSuite;
   OprfClient(this.cipherSuite);
 
-  BlindData<GE, S> blind(
+  (S, GE) blind(
     Uint8List input,
   ) {
     final blindFactor = cipherSuite.group.randomScalar();
     GE element = hashToGroup<CS, G, GE, S>(cipherSuite, input, mode);
     GE blindedElement = element * blindFactor;
-    return BlindData(blindFactor, blindedElement);
+    return (blindFactor, blindedElement);
   }
 
   Uint8List finalize(

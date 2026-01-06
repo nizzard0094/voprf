@@ -5,6 +5,7 @@ library;
 
 export 'src/group/group.dart';
 export 'src/group/ristretto.dart';
+export 'src/common.dart';
 export 'src/ciphersuite.dart';
 export 'src/oprf.dart';
 

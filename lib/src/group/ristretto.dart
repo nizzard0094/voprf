@@ -102,7 +102,10 @@ class RistrettoGroup extends Group<RistrettoElement, RistrettoScalar> {
           // Fills each byte with a cryptographically secure random value
           randomBytes[i] = secureRandom.nextInt(256);
         }
-        return deserializeScalar(randomBytes);
+        var res = deserializeScalar(randomBytes);
+        if (isZeroScalar(res) == 0) {
+          return res;
+        }
       } catch (_) {
         continue; // Invalid scalar encoding, try again.
       }

@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:voprf/src/ciphersuite.dart';
 import 'package:voprf/src/group/group.dart';
@@ -9,6 +10,9 @@ final Uint8List STR_HASH_TO_GROUP =
     Uint8List.fromList('HashToGroup-'.codeUnits);
 // ignore: non_constant_identifier_names
 final Uint8List STR_FINALIZE = Uint8List.fromList('Finalize'.codeUnits);
+// ignore: non_constant_identifier_names
+final Uint8List STR_DERIVE_KEYPAIR =
+    Uint8List.fromList('DeriveKeyPair'.codeUnits);
 
 enum Mode {
   /// Non-verifiable mode.
@@ -41,6 +45,47 @@ Uint8List createContextString(CipherSuite cipherSuite, Mode mode) {
   stringBuilder.add('-'.codeUnits);
   stringBuilder.add(cipherSuite.id.codeUnits);
   return stringBuilder.toBytes();
+}
+
+deriveKey<CS extends CipherSuite<G, GE, S>, G extends Group<GE, S>,
+    GE extends GroupElement<GE, S>, S extends GroupScalar<S>>(
+  CS cipherSuite,
+  Uint8List seed,
+  Uint8List info,
+  Mode mode,
+) {
+  final bytebuilder = BytesBuilder();
+  bytebuilder.add(STR_DERIVE_KEYPAIR);
+  bytebuilder.add(createContextString(cipherSuite, mode));
+  final dst = bytebuilder.takeBytes();
+  bytebuilder.add(seed);
+  bytebuilder.add(i2osp(info.length, 2));
+  bytebuilder.add(info);
+  final deriveInput = bytebuilder.takeBytes();
+  bytebuilder.add(deriveInput);
+  bytebuilder.addByte(0);
+  final input = bytebuilder.takeBytes();
+  final input_last_index = input.length - 1;
+  for (int i = 0; i < 256; i++) {
+    input[input_last_index] = i;
+    S skS = cipherSuite.group.hashToScalar(cipherSuite.hash, input, dst);
+    if (cipherSuite.group.isZeroScalar(skS) == 0) {
+      return skS;
+    }
+  }
+  throw Exception('DeriveKeyError');
+}
+
+deriveKeyPair<CS extends CipherSuite<G, GE, S>, G extends Group<GE, S>,
+    GE extends GroupElement<GE, S>, S extends GroupScalar<S>>(
+  CS cipherSuite,
+  Uint8List seed,
+  Uint8List info,
+  Mode mode,
+) {
+  final skS = deriveKey<CS, G, GE, S>(cipherSuite, seed, info, mode);
+  final pkS = cipherSuite.group.baseElement * skS;
+  return (skS, pkS);
 }
 
 GE deterministicBlindUnchecked<
@@ -83,11 +128,4 @@ Uint8List i2osp(int value, int length) {
     value >>= 8;
   }
   return result;
-}
-
-class BlindData<GE extends GroupElement<GE, S>, S extends GroupScalar<S>> {
-  final S blindFactor;
-  final GE blindedElement;
-
-  BlindData(this.blindFactor, this.blindedElement);
 }
